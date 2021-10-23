@@ -7,7 +7,7 @@
 #include <algorithm>
 #include "limits.h"
 
-#include "Greedy.h"
+
 
 void DecreaseTemperature(double InitialTemperature, double& T, int iter)
 {
@@ -16,7 +16,7 @@ void DecreaseTemperature(double InitialTemperature, double& T, int iter)
 
 double Probability(int dE, double T)
 {
-    // Непосредственно хитрая формулка
+    // РќРµРїРѕСЃСЂРµРґСЃС‚РІРµРЅРЅРѕ С…РёС‚СЂР°СЏ С„РѕСЂРјСѓР»РєР°
     double P = exp(-dE / T);
     return P;
 }
@@ -28,24 +28,28 @@ bool IsTransition(double P)
     return false;
 }
 
-std::vector <int> GetCandidate(std::vector <int> route)
+std::vector <int> GetCandidate(std::vector <int> v)
 {
-	if (route.back() == route.front())
-		route.erase(route.end() - 1);
-	
-    int i = rand() % (route.size() - 1);
-    int j = rand() % (route.size() - 1);
-    while (j == i)
-        j = rand() % (route.size() - 1);
-
-    int val = route[i];
-    route[i] = route[j];
-    route[j] = val;
-
-    return route;
+    // СЂР°РЅРґРѕРјРЅРѕ РІС‹Р±РµСЂРµРј 2 РёРЅРґРµРєСЃР° Рё РїРѕРјРµРЅСЏРµРј СЌР»РµРјРµРЅС‚С‹ РјРµСЃС‚Р°РјРё
+    std::vector <int> temp;
+    for (int i = 1; i < v.size(); i++) temp.push_back(i);
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine e(seed);
+    std::shuffle(std::begin(temp), std::end(temp), e);
+    int first_index = temp[0];
+    int second_index = first_index;
+    while (second_index == first_index) // РїРѕР»СѓС‡Р°РµРј РІС‚С‚РѕСЂРѕР№ РёРЅРґРµРєСЃ, РЅРµ СЂР°РІРЅС‹Р№ РїРµСЂРІРѕРјСѓ
+    {
+        std::shuffle(std::begin(temp), std::end(temp), e);
+        second_index = temp[0];
+    }
+    int first = v[first_index];
+    v[first_index] = v[second_index];
+    v[second_index] = first;
+    return v;
 }
 
-int CalculateDist(std::vector <int> seq, std::vector <std::vector<int>> M) // считает расстояние по заданному пути
+int CalculateDist(std::vector <int> seq, std::vector <std::vector<int>> M) // СЃС‡РёС‚Р°РµС‚ СЂР°СЃСЃС‚РѕСЏРЅРёРµ РїРѕ Р·Р°РґР°РЅРЅРѕРјСѓ РїСѓС‚Рё
 {
     int dist = 0;
     for (int i = 0; i < seq.size() - 1; i++) dist += M[seq[i]][seq[i + 1]];
@@ -55,14 +59,8 @@ int CalculateDist(std::vector <int> seq, std::vector <std::vector<int>> M) // сч
 
 std::pair <std::vector <int>, int> simulated_annealing(std::vector <std::vector<int>> M)
 {
-    std::cout.clear(std::ios_base::badbit);
-    std::pair <std::vector <int>, int> greedyBest = Greedy(M);
-    std::cout.clear(std::ios_base::goodbit);
-	
-    std::vector <int> Initial = greedyBest.first;
-    Initial.erase(Initial.end()-1);
-	
-    double InitialTemperature = 100, MinTemperature = 2; // константы, влияющие на то, когда завершаются итерации и на вероятность использования плохой транспозиции
+    std::vector <int> Initial;
+    double InitialTemperature = 10, MinTemperature = 0.00001; // РєРѕРЅСЃС‚Р°РЅС‚С‹, РІР»РёСЏСЋС‰РёРµ РЅР° С‚Рѕ, РєРѕРіРґР° Р·Р°РІРµСЂС€Р°СЋС‚СЃСЏ РёС‚РµСЂР°С†РёРё Рё РЅР° РІРµСЂРѕСЏС‚РЅРѕСЃС‚СЊ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ РїР»РѕС…РѕР№ С‚СЂР°РЅСЃРїРѕР·РёС†РёРё
     double T = InitialTemperature;
     for (int i = 1; i < M.size(); i++) Initial.push_back(i);
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -72,17 +70,17 @@ std::pair <std::vector <int>, int> simulated_annealing(std::vector <std::vector<
     int CurrentDist = CalculateDist(Initial, M);
 
 
-    for (int iteration = 0; iteration < 2000; iteration++) // количество итераций тоже можно регулировать
+    for (int iteration = 0; iteration < M.size() * M.size() + 100; iteration++) // РєРѕР»РёС‡РµСЃС‚РІРѕ РёС‚РµСЂР°С†РёР№ С‚РѕР¶Рµ РјРѕР¶РЅРѕ СЂРµРіСѓР»РёСЂРѕРІР°С‚СЊ
     {
         std::vector <int> candidate = GetCandidate(Initial);
-        // Если выгодно, то заменяем Initial на candidate
+        // Р•СЃР»Рё РІС‹РіРѕРґРЅРѕ, С‚Рѕ Р·Р°РјРµРЅСЏРµРј Initial РЅР° candidate
         if (CalculateDist(candidate, M) < CurrentDist)
         {
             Initial = candidate;
             CurrentDist = CalculateDist(candidate, M);
         }
-        // Если нет, то решаем, как быть, используя формулку, зависящую от итерации
-        // Надо, чтобы не попасть нечаянно в фейковый локальный минимум
+        // Р•СЃР»Рё РЅРµС‚, С‚Рѕ СЂРµС€Р°РµРј, РєР°Рє Р±С‹С‚СЊ, РёСЃРїРѕР»СЊР·СѓСЏ С„РѕСЂРјСѓР»РєСѓ, Р·Р°РІРёСЃСЏС‰СѓСЋ РѕС‚ РёС‚РµСЂР°С†РёРё
+        // РќР°РґРѕ, С‡С‚РѕР±С‹ РЅРµ РїРѕРїР°СЃС‚СЊ РЅРµС‡Р°СЏРЅРЅРѕ РІ С„РµР№РєРѕРІС‹Р№ Р»РѕРєР°Р»СЊРЅС‹Р№ РјРёРЅРёРјСѓРј
         else
         {
             if (IsTransition(Probability((CalculateDist(candidate, M) - CurrentDist), T)))
@@ -94,7 +92,7 @@ std::pair <std::vector <int>, int> simulated_annealing(std::vector <std::vector<
         DecreaseTemperature(InitialTemperature, T, iteration);
     }
     std::pair <std::vector<int>, int> p;
-    Initial.push_back(Initial[0]);
+    Initial.push_back(0);
     p.first = Initial;
     p.second = CurrentDist;
     return p;
